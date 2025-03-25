@@ -16,7 +16,8 @@ import Analyst from "@/pages/Analyst";
 import Profile from "@/pages/Profile";
 
 function App() {
-  const [user,loading] = useAuthState(auth);
+  const [user, loading] = useAuthState(auth);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
@@ -24,6 +25,7 @@ function App() {
       </div>
     );
   }
+
   return (
     <>
       <Navbar />
