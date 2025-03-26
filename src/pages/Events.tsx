@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Search, MapPin, Clock, CalendarDays, Users, Ticket } from 'lucide-react';
+import { Calendar, Search, MapPin, Clock, CalendarDays, Users, Ticket, Bell, List } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,10 +7,11 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import Navbar from '@/components/layout/Navbar';
-import { db } from "@/firebase/firebaseConfig";
+import { db, messaging } from "@/firebase/firebaseConfig";
 import { collection, getDocs, addDoc, query, where } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { GoogleMap, LoadScript, Marker } from '@react-google-maps/api';
+import { getMessaging, getToken, onMessage } from 'firebase/messaging';
 
 const Events = () => {
   const auth = getAuth();
@@ -20,15 +21,18 @@ const Events = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
+  const [isChecklistModalOpen, setIsChecklistModalOpen] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState(null);
   const [selectedLocation, setSelectedLocation] = useState(null);
+  const [selectedEvent, setSelectedEvent] = useState(null);
   const [registeredEvents, setRegisteredEvents] = useState(new Set());
   const [upcomingEvents, setUpcomingEvents] = useState([]);
-  
+  const [checklists, setChecklists] = useState({});
+
   const [registerForm, setRegisterForm] = useState({
     name: '', teamName: '', contactNo: '', email: ''
   });
-  
+
   const [createForm, setCreateForm] = useState({
     title: '', prizeMoney: '', date: '', time: '', location: '', genre: ''
   });
@@ -88,6 +92,12 @@ const Events = () => {
     }
   ];
 
+  const sampleChecklists = {
+    "1": ["Tennis racket", "Sports shoes", "Water bottle", "Arrive 1 hour early"],
+    "2": ["Cycling gear", "Helmet", "Energy bars", "Check weather forecast"],
+    "3": ["Swimsuit", "Goggles", "Towel", "Warm-up routine"]
+  };
+
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((currentUser) => {
       setUser(currentUser);
@@ -120,8 +130,34 @@ const Events = () => {
       }
     };
 
+    const fetchChecklists = async () => {
+      setChecklists(sampleChecklists); // Mock for now; extend with Firestore later
+    };
+
     fetchEvents();
     fetchUserRegistrations();
+    fetchChecklists();
+
+    // Request push notification permission
+    if ('Notification' in window) {
+      Notification.requestPermission().then(permission => {
+        if (permission === 'granted') {
+          getToken(messaging, { vapidKey: 'YOUR_VAPID_KEY' }).then((token) => {
+            console.log("FCM Token:", token);
+            // Save token to Firestore for this user
+            if (user) {
+              addDoc(collection(db, 'user_tokens'), { uid: user.uid, token });
+            }
+          }).catch(err => console.error("Error getting FCM token:", err));
+        }
+      });
+    }
+
+    // Listen for foreground messages
+    onMessage(messaging, (payload) => {
+      console.log("Message received:", payload);
+      alert(payload.notification.body);
+    });
   }, [user]);
 
   const filteredEvents = upcomingEvents.filter(event => 
@@ -146,13 +182,18 @@ const Events = () => {
         setSelectedLocation({ name: location, lat, lng });
         setIsMapModalOpen(true);
       } else {
-        console.error(`Geocoding failed with status: ${data.status}. Error message: ${data.error_message || 'Unknown error'}`);
+        console.error(`Geocoding failed: ${data.status}. Error: ${data.error_message || 'Unknown'}`);
         alert(`Unable to load map for ${location}. Error: ${data.error_message || data.status}`);
       }
     } catch (error) {
       console.error("Error fetching map location:", error);
-      alert("An error occurred while fetching the map location. Please try again later.");
+      alert("Failed to load map. Please try again later.");
     }
+  };
+
+  const handleShowChecklist = (event) => {
+    setSelectedEvent(event);
+    setIsChecklistModalOpen(true);
   };
 
   const handleRegisterSubmit = async (e) => {
@@ -172,14 +213,11 @@ const Events = () => {
 
       setIsRegisterModalOpen(false);
       setIsSuccessOpen(true);
-      
-      setRegisteredEvents(prev => {
-        const newSet = new Set(prev);
-        newSet.add(selectedEventId);
-        return newSet;
-      });
-      
+      setRegisteredEvents(prev => new Set(prev).add(selectedEventId));
       setRegisterForm({ name: '', teamName: '', contactNo: '', email: '' });
+
+      // Send email alert (placeholder)
+      console.log(`Email alert: Registered for event ${selectedEventId} to ${registerForm.email}`);
     } catch (error) {
       console.error("Error registering for event:", error);
     }
@@ -202,7 +240,7 @@ const Events = () => {
       organizer: "Community Event",
       createdBy: user.uid
     };
-    
+
     try {
       await addDoc(collection(db, 'events'), newEvent);
       setUpcomingEvents(prev => [...prev, newEvent]);
@@ -210,6 +248,47 @@ const Events = () => {
       setCreateForm({ title: '', prizeMoney: '', date: '', time: '', location: '', genre: '' });
     } catch (error) {
       console.error("Error adding event:", error);
+    }
+  };
+
+  const sendEventUpdate = async (eventId, updateMessage) => {
+    if (!user) return;
+
+    try {
+      const registrationsQuery = query(collection(db, 'registrations'), where('eventId', '==', eventId));
+      const registrationsSnapshot = await getDocs(registrationsQuery);
+      const userIds = registrationsSnapshot.docs.map(doc => doc.data().uid);
+
+      const tokensQuery = query(collection(db, 'user_tokens'), where('uid', 'in', userIds));
+      const tokensSnapshot = await getDocs(tokensQuery);
+      const tokens = tokensSnapshot.docs.map(doc => doc.data().token);
+
+      // Send push notification via FCM (server-side call required in production)
+      tokens.forEach(token => {
+        fetch('https://fcm.googleapis.com/fcm/send', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'key=YOUR_SERVER_KEY',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            to: token,
+            notification: {
+              title: `Update for ${upcomingEvents.find(e => e.id === eventId)?.title}`,
+              body: updateMessage
+            }
+          })
+        }).then(res => console.log("Notification sent:", res));
+      });
+
+      // Placeholder for email alert
+      registrationsSnapshot.docs.forEach(doc => {
+        console.log(`Email alert to ${doc.data().email}: ${updateMessage}`);
+      });
+
+      alert("Update sent to registered athletes!");
+    } catch (error) {
+      console.error("Error sending update:", error);
     }
   };
 
@@ -291,19 +370,38 @@ const Events = () => {
                         <Badge key={tag} variant="secondary" className="bg-blue-100 text-blue-800">{tag}</Badge>
                       ))}
                     </div>
-                    {registeredEvents.has(event.id) ? (
-                      <Badge className="bg-green-600 text-white">Registered</Badge>
-                    ) : (
-                      <Button 
-                        size="sm" 
-                        className="bg-blue-600 hover:bg-blue-700" 
-                        onClick={() => handleRegister(event.id)}
-                        disabled={!user}
-                      >
-                        <Ticket className="h-4 w-4 mr-2" />
-                        Register
-                      </Button>
-                    )}
+                    <div className="flex gap-2">
+                      {registeredEvents.has(event.id) ? (
+                        <>
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            onClick={() => handleShowChecklist(event)}
+                          >
+                            <List className="h-4 w-4 mr-2" />
+                            Prepare
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            onClick={() => sendEventUpdate(event.id, "Event delayed due to weather. New start time: 11:00 AM")}
+                          >
+                            <Bell className="h-4 w-4 mr-2" />
+                            Update
+                          </Button>
+                        </>
+                      ) : (
+                        <Button 
+                          size="sm" 
+                          className="bg-blue-600 hover:bg-blue-700" 
+                          onClick={() => handleRegister(event.id)}
+                          disabled={!user}
+                        >
+                          <Ticket className="h-4 w-4 mr-2" />
+                          Register
+                        </Button>
+                      )}
+                    </div>
                   </CardFooter>
                 </Card>
               ))}
@@ -493,6 +591,26 @@ const Events = () => {
             </div>
             <DialogFooter>
               <Button onClick={() => setIsMapModalOpen(false)} className="bg-blue-600 hover:bg-blue-700">Close</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Checklist Modal */}
+        <Dialog open={isChecklistModalOpen} onOpenChange={setIsChecklistModalOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Preparation Checklist for {selectedEvent?.title}</DialogTitle>
+              <DialogDescription>Items and tips to prepare for the event.</DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              <ul className="list-disc pl-5 space-y-2">
+                {checklists[selectedEvent?.id]?.map((item, index) => (
+                  <li key={index} className="text-gray-700">{item}</li>
+                ))}
+              </ul>
+            </div>
+            <DialogFooter>
+              <Button onClick={() => setIsChecklistModalOpen(false)} className="bg-blue-600 hover:bg-blue-700">Close</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

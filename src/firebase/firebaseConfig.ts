@@ -2,6 +2,7 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import { getMessaging, Messaging } from 'firebase/messaging';
 
 // Firebase configuration object
 const firebaseConfig = {
@@ -13,17 +14,21 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-// Initialize Firebase and define exports
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+
+// Define exports
 let auth;
 let db;
+let messaging: Messaging | undefined;
 
 try {
-  const app = initializeApp(firebaseConfig);
   auth = getAuth(app);
   db = getFirestore(app);
+  messaging = getMessaging(app); // Initialize messaging within the try block
   console.log("Firebase initialized successfully");
 } catch (error) {
   console.error("Firebase initialization error:", error);
 }
 
-export { auth, db };
+export { auth, db, messaging };
