@@ -24,19 +24,23 @@ const SignUp = () => {
   const [state, setState] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false); // Added loading state
   const navigate = useNavigate();
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(""); // Reset error state
+    setError("");
+    setLoading(true);
 
     // Basic validation
     if (!name || !gender || !state || !phoneNumber) {
       setError("All fields are required");
+      setLoading(false);
       return;
     }
     if (!/^\d{10}$/.test(phoneNumber)) {
       setError("Phone number must be a 10-digit number");
+      setLoading(false);
       return;
     }
 
@@ -45,21 +49,43 @@ const SignUp = () => {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // Store additional user details in Firestore
-      await setDoc(doc(db, "users", user.uid), {
+      // Prepare user data for Firestore
+      const userData = {
         name,
         email,
         gender,
         state,
         phoneNumber,
         createdAt: new Date().toISOString()
-      });
+      };
+      console.log("Writing to Firestore: ", { uid: user.uid, data: userData });
+
+      // Store additional user details in Firestore
+      await setDoc(doc(db, "users", user.uid), userData);
 
       console.log("SignUp: User registered successfully", user);
       navigate("/home");
     } catch (err: any) {
-      console.error("SignUp: Registration failed", err);
-      setError(err.message || "Failed to create account");
+      console.error("SignUp: Registration failed", err.code, err.message);
+      // Map Firebase errors to user-friendly messages
+      switch (err.code) {
+        case "auth/email-already-in-use":
+          setError("This email is already registered. Please log in or use a different email.");
+          break;
+        case "auth/invalid-email":
+          setError("Invalid email format. Please check your email.");
+          break;
+        case "auth/weak-password":
+          setError("Password is too weak. It should be at least 6 characters.");
+          break;
+        case "permission-denied":
+          setError("Failed to save user data due to permissions. Contact support.");
+          break;
+        default:
+          setError("Failed to create account. Please try again.");
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -77,6 +103,7 @@ const SignUp = () => {
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
+              disabled={loading}
             />
           </div>
 
@@ -89,6 +116,7 @@ const SignUp = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              disabled={loading}
             />
           </div>
 
@@ -101,12 +129,13 @@ const SignUp = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              disabled={loading}
             />
           </div>
 
           <div>
             <Label htmlFor="gender">Gender</Label>
-            <Select onValueChange={setGender} required>
+            <Select onValueChange={setGender} required disabled={loading}>
               <SelectTrigger id="gender">
                 <SelectValue placeholder="Select gender" />
               </SelectTrigger>
@@ -120,7 +149,7 @@ const SignUp = () => {
 
           <div>
             <Label htmlFor="state">State</Label>
-            <Select onValueChange={setState} required>
+            <Select onValueChange={setState} required disabled={loading}>
               <SelectTrigger id="state">
                 <SelectValue placeholder="Select your state" />
               </SelectTrigger>
@@ -143,13 +172,18 @@ const SignUp = () => {
               value={phoneNumber}
               onChange={(e) => setPhoneNumber(e.target.value)}
               required
+              disabled={loading}
             />
           </div>
 
           {error && <p className="text-red-500 text-sm">{error}</p>}
 
-          <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700">
-            Sign Up
+          <Button 
+            type="submit" 
+            className="w-full bg-blue-600 hover:bg-blue-700" 
+            disabled={loading}
+          >
+            {loading ? "Signing Up..." : "Sign Up"}
           </Button>
         </form>
       </div>
