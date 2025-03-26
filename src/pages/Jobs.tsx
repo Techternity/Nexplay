@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Briefcase, Search, Filter, MapPin, Calendar, Clock, Heart } from 'lucide-react';
+import { Briefcase, Search, Filter, MapPin, Heart, Edit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import Navbar from '@/components/layout/Navbar';
@@ -17,7 +16,7 @@ import { GoogleMap, LoadScript, Marker } from '@react-google-maps/api';
 interface Job {
   id: string;
   title: string;
-  company: string;
+  organization: string;
   location: string;
   type: string;
   salary: string;
@@ -28,20 +27,24 @@ interface Job {
   tags: string[];
 }
 
-// User profile interface for Skill Match
-interface UserProfile {
+// Athlete profile interface
+interface AthleteProfile {
+  uid: string;
   skills: string[];
   experienceLevel: string;
   preferredLocation?: string;
+  sport: string;
 }
 
-const GOOGLE_MAPS_API_KEY = 'AIzaSyCyFQ3m8BzUafCUwuXvyaDlBXRmuyA5IsQ';
+const GOOGLE_MAPS_API_KEY = 'YOUR_GOOGLE_MAPS_API_KEY'; // Replace with your actual key
 
-// Mock user profile (replace with real user data later)
-const mockUserProfile: UserProfile = {
-  skills: ["Cricket", "Coaching", "Data Analysis"],
-  experienceLevel: "Mid Level",
-  preferredLocation: "Bangalore, India"
+// Mock athlete profile
+const mockAthleteProfile: AthleteProfile = {
+  uid: "mockUser123",
+  skills: ["Cricket", "Coaching", "Team Leadership"],
+  experienceLevel: "Intermediate",
+  preferredLocation: "Bangalore, India",
+  sport: "Cricket"
 };
 
 const Jobs = () => {
@@ -56,60 +59,51 @@ const Jobs = () => {
   const [selectedLocation, setSelectedLocation] = useState<{ name: string; lat: number; lng: number } | null>(null);
   const [jobTypeFilter, setJobTypeFilter] = useState<string[]>([]);
   const [locationFilter, setLocationFilter] = useState<string[]>([]);
+  const [athleteProfile, setAthleteProfile] = useState<AthleteProfile>(mockAthleteProfile);
+  const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
+  const [editProfile, setEditProfile] = useState<AthleteProfile | null>(null);
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
 
-  // Mock initial jobs
+  // Initial mock jobs
   const initialJobs: Job[] = [
     {
       id: "1",
-      title: "Performance Analyst",
-      company: "Sports Excellence Center",
-      location: "Mumbai, India",
-      type: "Full-time",
-      salary: "₹8,00,000 - ₹12,00,000 /year",
-      postedDate: "2 days ago",
-      description: "Help athletes reach peak performance through data-driven insights.",
-      responsibilities: ["Collect and analyze performance data", "Create reports", "Recommend improvements"],
-      requirements: ["Bachelor's in Sports Science", "2+ years experience", "Data analysis tools"],
-      tags: ["Performance Analysis", "Data", "Sports Science"]
-    },
-    {
-      id: "2",
-      title: "Assistant Coach - Cricket",
-      company: "National Cricket Academy",
+      title: "Cricket Coach",
+      organization: "National Cricket Academy",
       location: "Bangalore, India",
-      type: "Full-time",
+      type: "Coaching",
       salary: "₹10,00,000 - ₹15,00,000 /year",
       postedDate: "1 week ago",
-      description: "Develop the next generation of cricket talent.",
-      responsibilities: ["Assist head coach", "Develop training programs", "Provide guidance"],
-      requirements: ["Former cricketer preferred", "BCCI Level B", "3+ years coaching"],
+      description: "Coach young cricketers to excel in national leagues.",
+      responsibilities: ["Design training drills", "Mentor athletes", "Analyze performance"],
+      requirements: ["3+ years coaching experience", "BCCI certification", "Cricket background"],
       tags: ["Cricket", "Coaching", "Youth Development"]
     },
     {
-      id: "3",
-      title: "Sports Physiotherapist",
-      company: "Elite Athletes Rehabilitation Center",
-      location: "Delhi, India",
-      type: "Full-time",
-      salary: "₹7,00,000 - ₹10,00,000 /year",
+      id: "2",
+      title: "Athlete Sponsorship Coordinator",
+      organization: "SportsBrand Inc.",
+      location: "Mumbai, India",
+      type: "Sponsorship",
+      salary: "₹8,00,000 - ₹12,00,000 /year",
       postedDate: "3 days ago",
-      description: "Provide physiotherapy services to elite athletes.",
-      responsibilities: ["Assess and treat injuries", "Develop rehab programs", "Injury prevention"],
-      requirements: ["Master's in Physiotherapy", "3+ years experience", "Rehab techniques"],
-      tags: ["Physiotherapy", "Rehabilitation", "Sports Medicine"]
+      description: "Connect athletes with sponsorship opportunities.",
+      responsibilities: ["Negotiate deals", "Manage partnerships", "Promote athletes"],
+      requirements: ["Marketing experience", "Sports industry knowledge", "Networking skills"],
+      tags: ["Sponsorship", "Marketing", "Athlete Representation"]
     },
     {
-      id: "4",
-      title: "Strength & Conditioning Coach",
-      company: "High Performance Sports Center",
-      location: "Pune, India",
-      type: "Full-time",
-      salary: "₹6,00,000 - ₹9,00,000 /year",
+      id: "3",
+      title: "Brand Ambassador - Track & Field",
+      organization: "RunFast Athletics",
+      location: "Delhi, India",
+      type: "Brand Ambassador",
+      salary: "₹5,00,000 - ₹8,00,000 /year",
       postedDate: "5 days ago",
-      description: "Improve athletes' physical capabilities and prevent injuries.",
-      responsibilities: ["Design training programs", "Conduct assessments", "Collaborate with team"],
-      requirements: ["Bachelor's in Exercise Science", "NSCA, CSCS", "2+ years experience"],
-      tags: ["S&C", "Training", "Physical Preparation"]
+      description: "Represent the brand at events and promote products.",
+      responsibilities: ["Attend events", "Engage with fans", "Social media promotion"],
+      requirements: ["Track & Field experience", "Public speaking skills", "Social media presence"],
+      tags: ["Athletics", "Brand Ambassador", "Public Relations"]
     }
   ];
 
@@ -134,6 +128,12 @@ const Jobs = () => {
 
     const fetchUserData = async () => {
       if (user) {
+        const profileQuery = query(collection(db, 'athlete_profiles'), where('uid', '==', user.uid));
+        const profileSnapshot = await getDocs(profileQuery);
+        if (!profileSnapshot.empty) {
+          setAthleteProfile(profileSnapshot.docs[0].data() as AthleteProfile);
+        }
+
         const appliedQuery = query(collection(db, 'job_applications'), where('uid', '==', user.uid));
         const appliedSnapshot = await getDocs(appliedQuery);
         setAppliedJobs(new Set(appliedSnapshot.docs.map(doc => doc.data().jobId)));
@@ -148,24 +148,24 @@ const Jobs = () => {
     fetchUserData();
   }, [user]);
 
-  // Skill Match Algorithm
-  const getSkillMatchScore = (job: Job, profile: UserProfile): number => {
+  const getSkillMatchScore = (job: Job, profile: AthleteProfile): number => {
     let score = 0;
     const jobTagsLower = job.tags.map(tag => tag.toLowerCase());
-    const userSkillsLower = profile.skills.map(skill => skill.toLowerCase());
+    const athleteSkillsLower = profile.skills.map(skill => skill.toLowerCase());
 
-    // Skill match
-    userSkillsLower.forEach(skill => {
+    athleteSkillsLower.forEach(skill => {
       if (jobTagsLower.includes(skill)) score += 30;
     });
 
-    // Location match
+    if (job.tags.some(tag => tag.toLowerCase() === profile.sport.toLowerCase())) {
+      score += 20;
+    }
+
     if (profile.preferredLocation && job.location.toLowerCase().includes(profile.preferredLocation.toLowerCase())) {
       score += 20;
     }
 
-    // Experience match (simplified)
-    if (job.requirements.some(req => req.includes(profile.experienceLevel))) {
+    if (job.requirements.some(req => req.toLowerCase().includes(profile.experienceLevel.toLowerCase()))) {
       score += 20;
     }
 
@@ -175,7 +175,7 @@ const Jobs = () => {
   const filteredJobs = jobs.filter(job => {
     const matchesSearch =
       job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      job.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      job.organization.toLowerCase().includes(searchTerm.toLowerCase()) ||
       job.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
       job.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
 
@@ -186,7 +186,7 @@ const Jobs = () => {
   });
 
   const recommendedJobs = [...filteredJobs].sort((a, b) =>
-    getSkillMatchScore(b, mockUserProfile) - getSkillMatchScore(a, mockUserProfile)
+    getSkillMatchScore(b, athleteProfile) - getSkillMatchScore(a, athleteProfile)
   );
 
   const handleJobSelect = (job: Job) => {
@@ -204,30 +204,41 @@ const Jobs = () => {
         setSelectedLocation({ name: location, lat, lng });
         setIsMapModalOpen(true);
       } else {
-        console.error(`Geocoding failed: ${data.status}. Error: ${data.error_message || 'Unknown'}`);
-        alert(`Unable to load map for ${location}. Error: ${data.error_message || data.status}`);
+        console.error(`Geocoding failed: ${data.status}`);
+        alert(`Unable to load map for ${location}.`);
       }
     } catch (error) {
       console.error("Error fetching map location:", error);
-      alert("Failed to load map. Please try again later.");
+      alert("Failed to load map.");
     }
   };
 
-  const handleApply = async (jobId: string) => {
+  const handleApplyClick = (jobId: string) => {
     if (!user) {
       alert("Please log in to apply for jobs.");
       return;
     }
+    setSelectedJobId(jobId);
+    setEditProfile({ ...athleteProfile }); // Clone current profile for editing
+    setIsApplyModalOpen(true);
+  };
+
+  const handleApplyConfirm = async () => {
+    if (!user || !selectedJobId || !editProfile) return;
     try {
       await addDoc(collection(db, 'job_applications'), {
-        jobId,
+        jobId: selectedJobId,
         uid: user.uid,
+        athleteProfile: editProfile, // Submit the edited profile
         appliedAt: new Date().toISOString()
       });
-      setAppliedJobs(prev => new Set(prev).add(jobId));
-      alert("Application submitted successfully!");
+      setAppliedJobs(prev => new Set(prev).add(selectedJobId));
+      setAthleteProfile(editProfile); // Update local profile state
+      setIsApplyModalOpen(false);
+      alert("Application submitted with your athlete profile!");
     } catch (error) {
       console.error("Error applying for job:", error);
+      alert("Failed to submit application. Please try again.");
     }
   };
 
@@ -261,6 +272,12 @@ const Jobs = () => {
     }
   };
 
+  const handleProfileEdit = (field: keyof AthleteProfile, value: string | string[]) => {
+    if (editProfile) {
+      setEditProfile({ ...editProfile, [field]: value });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -268,7 +285,7 @@ const Jobs = () => {
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-bold flex items-center gap-2">
             <Briefcase className="h-7 w-7" />
-            <span>Sports Careers</span>
+            <span>Sports Management Careers</span>
           </h1>
           <Button variant="outline" disabled={!user}>
             + Post a Job
@@ -278,7 +295,7 @@ const Jobs = () => {
         <div className="relative mb-6">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search jobs by title, company, location, or skills"
+            placeholder="Search jobs by title, organization, location, or skills"
             className="pl-10"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -304,7 +321,7 @@ const Jobs = () => {
                     <div>
                       <h4 className="text-sm mb-2">Job Type</h4>
                       <div className="flex flex-wrap gap-2">
-                        {["Full-time", "Part-time", "Contract", "Internship"].map(type => (
+                        {["Coaching", "Sponsorship", "Brand Ambassador"].map(type => (
                           <Badge
                             key={type}
                             variant={jobTypeFilter.includes(type) ? "default" : "outline"}
@@ -319,7 +336,7 @@ const Jobs = () => {
                     <div>
                       <h4 className="text-sm mb-2">Location</h4>
                       <div className="flex flex-wrap gap-2">
-                        {["Mumbai, India", "Bangalore, India", "Delhi, India", "Pune, India"].map(loc => (
+                        {["Mumbai, India", "Bangalore, India", "Delhi, India"].map(loc => (
                           <Badge
                             key={loc}
                             variant={locationFilter.includes(loc) ? "default" : "outline"}
@@ -349,7 +366,7 @@ const Jobs = () => {
                             <CardTitle>{job.title}</CardTitle>
                             <span className="text-muted-foreground text-sm">{job.postedDate}</span>
                           </div>
-                          <div className="text-lg font-medium">{job.company}</div>
+                          <div className="text-lg font-medium">{job.organization}</div>
                         </CardHeader>
                         <CardContent className="pb-2">
                           <div className="flex flex-wrap items-center gap-4 text-muted-foreground mb-3">
@@ -399,10 +416,10 @@ const Jobs = () => {
                               disabled={appliedJobs.has(job.id)}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleApply(job.id);
+                                handleApplyClick(job.id);
                               }}
                             >
-                              {appliedJobs.has(job.id) ? "Applied" : "Apply"}
+                              {appliedJobs.has(job.id) ? "Applied" : "Apply with Profile"}
                             </Button>
                             <Button
                               size="sm"
@@ -442,7 +459,7 @@ const Jobs = () => {
                         <CardTitle>{job.title}</CardTitle>
                         <span className="text-muted-foreground text-sm">{job.postedDate}</span>
                       </div>
-                      <div className="text-lg font-medium">{job.company}</div>
+                      <div className="text-lg font-medium">{job.organization}</div>
                     </CardHeader>
                     <CardContent className="pb-2">
                       <div className="flex flex-wrap items-center gap-4 text-muted-foreground mb-3">
@@ -476,10 +493,10 @@ const Jobs = () => {
                           disabled={appliedJobs.has(job.id)}
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleApply(job.id);
+                            handleApplyClick(job.id);
                           }}
                         >
-                          {appliedJobs.has(job.id) ? "Applied" : "Apply"}
+                          {appliedJobs.has(job.id) ? "Applied" : "Apply with Profile"}
                         </Button>
                         <Button
                           size="sm"
@@ -510,7 +527,7 @@ const Jobs = () => {
                   <Card key={job.id}>
                     <CardHeader>
                       <CardTitle>{job.title}</CardTitle>
-                      <div className="text-lg font-medium">{job.company}</div>
+                      <div className="text-lg font-medium">{job.organization}</div>
                     </CardHeader>
                     <CardContent>
                       <div className="flex flex-wrap items-center gap-4 text-muted-foreground">
@@ -542,7 +559,7 @@ const Jobs = () => {
                   <Card key={job.id}>
                     <CardHeader>
                       <CardTitle>{job.title}</CardTitle>
-                      <div className="text-lg font-medium">{job.company}</div>
+                      <div className="text-lg font-medium">{job.organization}</div>
                     </CardHeader>
                     <CardContent>
                       <div className="flex flex-wrap items-center gap-4 text-muted-foreground">
@@ -590,6 +607,62 @@ const Jobs = () => {
             </div>
             <DialogFooter>
               <Button onClick={() => setIsMapModalOpen(false)} className="bg-blue-600 hover:bg-blue-700">Close</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Apply with Profile Modal */}
+        <Dialog open={isApplyModalOpen} onOpenChange={setIsApplyModalOpen}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Apply with Profile</DialogTitle>
+              <DialogDescription>
+                Review and edit your athlete profile before applying for "{jobs.find(j => j.id === selectedJobId)?.title}".
+              </DialogDescription>
+            </DialogHeader>
+            {editProfile && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium">Sport</label>
+                  <Input
+                    value={editProfile.sport}
+                    onChange={(e) => handleProfileEdit('sport', e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium">Skills (comma-separated)</label>
+                  <Input
+                    value={editProfile.skills.join(', ')}
+                    onChange={(e) => handleProfileEdit('skills', e.target.value.split(', ').map(s => s.trim()))}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium">Experience Level</label>
+                  <Input
+                    value={editProfile.experienceLevel}
+                    onChange={(e) => handleProfileEdit('experienceLevel', e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium">Preferred Location</label>
+                  <Input
+                    value={editProfile.preferredLocation || ''}
+                    onChange={(e) => handleProfileEdit('preferredLocation', e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+            )}
+            <DialogFooter className="mt-4">
+              <Button variant="outline" onClick={() => setIsApplyModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleApplyConfirm} className="bg-blue-600 hover:bg-blue-700">
+                Submit Application
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
