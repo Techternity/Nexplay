@@ -46,32 +46,85 @@ export const Navbar = () => {
     <header 
       className={cn(
         "fixed top-0 left-0 right-0 z-50 transition-all duration-300 px-6 md:px-8",
-        isScrolled ? "py-3 bg-background/80 backdrop-blur-md border-b" : "py-4"
+        isScrolled ? "py-3 bg-gray-900/90 backdrop-blur-md border-b border-gray-800" : "py-4 bg-transparent"
       )}
     >
       <div className="max-w-7xl mx-auto flex items-center justify-between">
-        <Link to="/" className="text-xl font-semibold flex items-center">
-          <span className="text-primary">Sports</span>
-          <span className="ml-1">Catalyst</span>
+        {/* Updated logo section */}
+        <Link to="/" className="flex items-center">
+          <img 
+            src="/images/nexplay_w.png" 
+            alt="NextPlay Logo" 
+            className="h-10 md:h-12 transition-transform hover:scale-105"
+          />
         </Link>
         
+        {/* Updated nav items styling */}
         <nav className="hidden md:flex items-center space-x-1">
-          <Link to="/" className={cn("nav-link", isActive('/') && "nav-link-active")}>
+          <Link 
+            to="/" 
+            className={cn(
+              "px-4 py-2 rounded-md text-sm font-medium transition-all duration-200",
+              isActive('/') 
+                ? "text-white bg-blue-600/20 border-b-2 border-blue-500" 
+                : "text-gray-300 hover:text-white hover:bg-gray-800/50"
+            )}
+          >
             Home
           </Link>
-          <Link to="/network" className={cn("nav-link", isActive('/network') && "nav-link-active")}>
+          <Link 
+            to="/network" 
+            className={cn(
+              "px-4 py-2 rounded-md text-sm font-medium transition-all duration-200",
+              isActive('/network') 
+                ? "text-white bg-blue-600/20 border-b-2 border-blue-500" 
+                : "text-gray-300 hover:text-white hover:bg-gray-800/50"
+            )}
+          >
             Network
           </Link>
-          <Link to="/jobs" className={cn("nav-link", isActive('/jobs') && "nav-link-active")}>
+          <Link 
+            to="/jobs" 
+            className={cn(
+              "px-4 py-2 rounded-md text-sm font-medium transition-all duration-200",
+              isActive('/jobs') 
+                ? "text-white bg-blue-600/20 border-b-2 border-blue-500" 
+                : "text-gray-300 hover:text-white hover:bg-gray-800/50"
+            )}
+          >
             Jobs
           </Link>
-          <Link to="/events" className={cn("nav-link", isActive('/events') && "nav-link-active")}>
+          <Link 
+            to="/events" 
+            className={cn(
+              "px-4 py-2 rounded-md text-sm font-medium transition-all duration-200",
+              isActive('/events') 
+                ? "text-white bg-blue-600/20 border-b-2 border-blue-500" 
+                : "text-gray-300 hover:text-white hover:bg-gray-800/50"
+            )}
+          >
             Events
           </Link>
-          <Link to="/feed" className={cn("nav-link", isActive('/feed') && "nav-link-active")}>
+          <Link 
+            to="/feed" 
+            className={cn(
+              "px-4 py-2 rounded-md text-sm font-medium transition-all duration-200",
+              isActive('/feed') 
+                ? "text-white bg-blue-600/20 border-b-2 border-blue-500" 
+                : "text-gray-300 hover:text-white hover:bg-gray-800/50"
+            )}
+          >
             Feed
           </Link>
-          <Link to="/analyst" className={cn("nav-link", isActive('/analyst') && "nav-link-active")}>
+          <Link 
+            to="/analyst" 
+            className={cn(
+              "px-4 py-2 rounded-md text-sm font-medium transition-all duration-200",
+              isActive('/analyst') 
+                ? "text-white bg-blue-600/20 border-b-2 border-blue-500" 
+                : "text-gray-300 hover:text-white hover:bg-gray-800/50"
+            )}
+          >
             Analyst
           </Link>
         </nav>
@@ -111,7 +164,7 @@ export const Navbar = () => {
         <Button 
           variant="ghost" 
           size="icon" 
-          className="md:hidden"
+          className="md:hidden text-white hover:bg-gray-800/50"
           onClick={toggleMobileMenu}
         >
           {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -119,27 +172,27 @@ export const Navbar = () => {
       </div>
       
       {isMobileMenuOpen && (
-        <div className="md:hidden fixed inset-0 top-[60px] bg-background z-40 animate-fade-in">
+        <div className="md:hidden fixed inset-0 top-[60px] bg-gray-900/95 backdrop-blur-sm z-40 animate-fade-in">
           <div className="p-6 flex flex-col space-y-6">
-            <Link to="/" className={cn("text-lg font-medium", isActive('/') && "text-primary")} onClick={() => setIsMobileMenuOpen(false)}>
+            <Link to="/" className={cn("text-lg font-medium", isActive('/') ? "text-blue-400" : "text-gray-300")} onClick={() => setIsMobileMenuOpen(false)}>
               Home
             </Link>
-            <Link to="/network" className={cn("text-lg font-medium", isActive('/network') && "text-primary")} onClick={() => setIsMobileMenuOpen(false)}>
+            <Link to="/network" className={cn("text-lg font-medium", isActive('/network') ? "text-blue-400" : "text-gray-300")} onClick={() => setIsMobileMenuOpen(false)}>
               Network
             </Link>
-            <Link to="/jobs" className={cn("text-lg font-medium", isActive('/jobs') && "text-primary")} onClick={() => setIsMobileMenuOpen(false)}>
+            <Link to="/jobs" className={cn("text-lg font-medium", isActive('/jobs') ? "text-blue-400" : "text-gray-300")} onClick={() => setIsMobileMenuOpen(false)}>
               Jobs
             </Link>
-            <Link to="/events" className={cn("text-lg font-medium", isActive('/events') && "text-primary")} onClick={() => setIsMobileMenuOpen(false)}>
+            <Link to="/events" className={cn("text-lg font-medium", isActive('/events') ? "text-blue-400" : "text-gray-300")} onClick={() => setIsMobileMenuOpen(false)}>
               Events
             </Link>
-            <Link to="/feed" className={cn("text-lg font-medium", isActive('/feed') && "text-primary")} onClick={() => setIsMobileMenuOpen(false)}>
+            <Link to="/feed" className={cn("text-lg font-medium", isActive('/feed') ? "text-blue-400" : "text-gray-300")} onClick={() => setIsMobileMenuOpen(false)}>
               Feed
             </Link>
-            <Link to="/analyst" className={cn("text-lg font-medium", isActive('/analyst') && "text-primary")} onClick={() => setIsMobileMenuOpen(false)}>
+            <Link to="/analyst" className={cn("text-lg font-medium", isActive('/analyst') ? "text-blue-400" : "text-gray-300")} onClick={() => setIsMobileMenuOpen(false)}>
               Analyst
             </Link>
-            <Link to="/profile" className={cn("text-lg font-medium", isActive('/profile') && "text-primary")} onClick={() => setIsMobileMenuOpen(false)}>
+            <Link to="/profile" className={cn("text-lg font-medium", isActive('/profile') ? "text-blue-400" : "text-gray-300")} onClick={() => setIsMobileMenuOpen(false)}>
               Profile
             </Link>
             <div className="pt-4">
