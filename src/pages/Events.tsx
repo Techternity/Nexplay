@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Search, MapPin, Clock, CalendarDays, Users, Ticket, Bell, List } from 'lucide-react';
+import { Calendar, Search, MapPin, Clock, CalendarDays, Users, Ticket, List } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,11 +7,10 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import Navbar from '@/components/layout/Navbar';
-import { db, messaging } from "@/firebase/firebaseConfig";
+import { db } from "@/firebase/firebaseConfig";
 import { collection, getDocs, addDoc, query, where } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { GoogleMap, LoadScript, Marker } from '@react-google-maps/api';
-import { getMessaging, getToken, onMessage } from 'firebase/messaging';
 
 const Events = () => {
   const auth = getAuth();
@@ -22,12 +21,12 @@ const Events = () => {
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
   const [isChecklistModalOpen, setIsChecklistModalOpen] = useState(false);
-  const [selectedEventId, setSelectedEventId] = useState(null);
-  const [selectedLocation, setSelectedLocation] = useState(null);
-  const [selectedEvent, setSelectedEvent] = useState(null);
-  const [registeredEvents, setRegisteredEvents] = useState(new Set());
-  const [upcomingEvents, setUpcomingEvents] = useState([]);
-  const [checklists, setChecklists] = useState({});
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState<{ name: string; lat: number; lng: number } | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<any>(null);
+  const [registeredEvents, setRegisteredEvents] = useState<Set<string>>(new Set());
+  const [upcomingEvents, setUpcomingEvents] = useState<any[]>([]);
+  const [checklists, setChecklists] = useState<{ [key: string]: string[] }>({});
 
   const [registerForm, setRegisterForm] = useState({
     name: '', teamName: '', contactNo: '', email: ''
@@ -42,10 +41,10 @@ const Events = () => {
   const initialEvents = [
     {
       id: "1",
-      title: "All-India Tennis Open 2023",
+      title: "All-India Tennis Open 2025",
       organizer: "Tennis Federation of India",
       location: "DLTA Complex, New Delhi",
-      date: "Nov 1-5, 2023",
+      date: "Nov 1-5, 2025",
       time: "10:00 AM - 6:00 PM",
       description: "Premier tennis tournament featuring top Indian players.",
       attendees: 600,
@@ -55,10 +54,10 @@ const Events = () => {
     },
     {
       id: "2",
-      title: "Himalayan Cycling Challenge",
+      title: "Himalayan Cycling Challenge 2025",
       organizer: "Cycling India Association",
       location: "Manali, Himachal Pradesh",
-      date: "Nov 15-20, 2023",
+      date: "Nov 15-20, 2025",
       time: "7:00 AM - 5:00 PM",
       description: "Extreme mountain cycling race through the Himalayas.",
       attendees: 250,
@@ -68,10 +67,10 @@ const Events = () => {
     },
     {
       id: "3",
-      title: "Kolkata Swimming Nationals",
+      title: "Kolkata Swimming Nationals 2025",
       organizer: "Swimming Federation of India",
       location: "Salt Lake Stadium Pool",
-      date: "Dec 5-8, 2023",
+      date: "Dec 5-8, 2025",
       time: "9:00 AM - 4:00 PM",
       description: "National swimming championship with multiple categories.",
       attendees: 400,
@@ -85,7 +84,7 @@ const Events = () => {
     {
       id: "p1",
       title: "Mumbai Volleyball League",
-      date: "Sep 20, 2023",
+      date: "Sep 20, 2024",
       location: "Andheri Sports Complex",
       performance: { team: "Beach Blasters", points: 25, opponentPoints: 22, result: "Win" },
       image: "https://images.unsplash.com/photo-1612872087720-48736c15d73b?auto=format&fit=crop&w=2070&q=80"
@@ -106,72 +105,41 @@ const Events = () => {
   }, [auth]);
 
   useEffect(() => {
-    const fetchEvents = async () => {
+    const fetchData = async () => {
       try {
         const eventsCollection = collection(db, 'events');
         const eventsSnapshot = await getDocs(eventsCollection);
         const eventsList = eventsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setUpcomingEvents([...initialEvents, ...eventsList]);
-      } catch (error) {
-        console.error("Error fetching events:", error);
-      }
-    };
 
-    const fetchUserRegistrations = async () => {
-      if (user) {
-        try {
+        if (user) {
           const q = query(collection(db, 'registrations'), where('uid', '==', user.uid));
           const registrationsSnapshot = await getDocs(q);
           const userRegisteredEvents = new Set(registrationsSnapshot.docs.map(doc => doc.data().eventId));
           setRegisteredEvents(userRegisteredEvents);
-        } catch (error) {
-          console.error("Error fetching user registrations:", error);
         }
+
+        setChecklists(sampleChecklists);
+      } catch (error) {
+        console.error("Error fetching data:", error);
       }
     };
 
-    const fetchChecklists = async () => {
-      setChecklists(sampleChecklists); // Mock for now; extend with Firestore later
-    };
-
-    fetchEvents();
-    fetchUserRegistrations();
-    fetchChecklists();
-
-    // Request push notification permission
-    if ('Notification' in window) {
-      Notification.requestPermission().then(permission => {
-        if (permission === 'granted') {
-          getToken(messaging, { vapidKey: 'YOUR_VAPID_KEY' }).then((token) => {
-            console.log("FCM Token:", token);
-            // Save token to Firestore for this user
-            if (user) {
-              addDoc(collection(db, 'user_tokens'), { uid: user.uid, token });
-            }
-          }).catch(err => console.error("Error getting FCM token:", err));
-        }
-      });
-    }
-
-    // Listen for foreground messages
-    onMessage(messaging, (payload) => {
-      console.log("Message received:", payload);
-      alert(payload.notification.body);
-    });
+    fetchData();
   }, [user]);
 
-  const filteredEvents = upcomingEvents.filter(event => 
+  const filteredEvents = upcomingEvents.filter(event =>
     event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     event.organizer?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     event.location.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleRegister = (eventId) => {
+  const handleRegister = (eventId: string) => {
     setSelectedEventId(eventId);
     setIsRegisterModalOpen(true);
   };
 
-  const handleShowMap = async (location) => {
+  const handleShowMap = async (location: string) => {
     try {
       const response = await fetch(
         `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(location)}&key=${GOOGLE_MAPS_API_KEY}`
@@ -191,12 +159,12 @@ const Events = () => {
     }
   };
 
-  const handleShowChecklist = (event) => {
+  const handleShowChecklist = (event: any) => {
     setSelectedEvent(event);
     setIsChecklistModalOpen(true);
   };
 
-  const handleRegisterSubmit = async (e) => {
+  const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) {
       console.error("User not authenticated");
@@ -213,17 +181,16 @@ const Events = () => {
 
       setIsRegisterModalOpen(false);
       setIsSuccessOpen(true);
-      setRegisteredEvents(prev => new Set(prev).add(selectedEventId));
+      setRegisteredEvents(prev => new Set(prev).add(selectedEventId!));
       setRegisterForm({ name: '', teamName: '', contactNo: '', email: '' });
-
-      // Send email alert (placeholder)
       console.log(`Email alert: Registered for event ${selectedEventId} to ${registerForm.email}`);
     } catch (error) {
       console.error("Error registering for event:", error);
+      alert("Failed to register for the event. Please try again.");
     }
   };
 
-  const handleCreateSubmit = async (e) => {
+  const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) {
       console.error("User not authenticated");
@@ -248,47 +215,7 @@ const Events = () => {
       setCreateForm({ title: '', prizeMoney: '', date: '', time: '', location: '', genre: '' });
     } catch (error) {
       console.error("Error adding event:", error);
-    }
-  };
-
-  const sendEventUpdate = async (eventId, updateMessage) => {
-    if (!user) return;
-
-    try {
-      const registrationsQuery = query(collection(db, 'registrations'), where('eventId', '==', eventId));
-      const registrationsSnapshot = await getDocs(registrationsQuery);
-      const userIds = registrationsSnapshot.docs.map(doc => doc.data().uid);
-
-      const tokensQuery = query(collection(db, 'user_tokens'), where('uid', 'in', userIds));
-      const tokensSnapshot = await getDocs(tokensQuery);
-      const tokens = tokensSnapshot.docs.map(doc => doc.data().token);
-
-      // Send push notification via FCM (server-side call required in production)
-      tokens.forEach(token => {
-        fetch('https://fcm.googleapis.com/fcm/send', {
-          method: 'POST',
-          headers: {
-            'Authorization': 'key=YOUR_SERVER_KEY',
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            to: token,
-            notification: {
-              title: `Update for ${upcomingEvents.find(e => e.id === eventId)?.title}`,
-              body: updateMessage
-            }
-          })
-        }).then(res => console.log("Notification sent:", res));
-      });
-
-      // Placeholder for email alert
-      registrationsSnapshot.docs.forEach(doc => {
-        console.log(`Email alert to ${doc.data().email}: ${updateMessage}`);
-      });
-
-      alert("Update sent to registered athletes!");
-    } catch (error) {
-      console.error("Error sending update:", error);
+      alert("Failed to create event. Please try again.");
     }
   };
 
@@ -301,8 +228,8 @@ const Events = () => {
             <Calendar className="h-7 w-7 text-blue-600" />
             <span>Sports Events</span>
           </h1>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             className="border-blue-600 text-blue-600 hover:bg-blue-50"
             onClick={() => setIsCreateModalOpen(true)}
           >
@@ -312,8 +239,8 @@ const Events = () => {
 
         <div className="relative mb-6">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-          <Input 
-            placeholder="Search events..." 
+          <Input
+            placeholder="Search events..."
             className="pl-10 border-gray-300 focus:border-blue-500"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -343,14 +270,14 @@ const Events = () => {
                   <CardContent className="pb-2">
                     <div className="flex flex-col space-y-2 text-gray-600 mb-3">
                       <div className="flex items-center gap-2">
-                        <CalendarDays className="h-4 w-4" />
+                        <CalendarDays className="h Marie-4 w-4" />
                         <span>{event.date}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <Clock className="h-4 w-4" />
                         <span>{event.time}</span>
                       </div>
-                      <div 
+                      <div
                         className="flex items-center gap-2 cursor-pointer hover:text-blue-600"
                         onClick={() => handleShowMap(event.location)}
                       >
@@ -366,34 +293,24 @@ const Events = () => {
                   </CardContent>
                   <CardFooter className="flex justify-between">
                     <div className="flex gap-2">
-                      {event.tags.map(tag => (
+                      {event.tags.map((tag: string) => (
                         <Badge key={tag} variant="secondary" className="bg-blue-100 text-blue-800">{tag}</Badge>
                       ))}
                     </div>
                     <div className="flex gap-2">
                       {registeredEvents.has(event.id) ? (
-                        <>
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            onClick={() => handleShowChecklist(event)}
-                          >
-                            <List className="h-4 w-4 mr-2" />
-                            Prepare
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            onClick={() => sendEventUpdate(event.id, "Event delayed due to weather. New start time: 11:00 AM")}
-                          >
-                            <Bell className="h-4 w-4 mr-2" />
-                            Update
-                          </Button>
-                        </>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleShowChecklist(event)}
+                        >
+                          <List className="h-4 w-4 mr-2" />
+                          Prepare
+                        </Button>
                       ) : (
-                        <Button 
-                          size="sm" 
-                          className="bg-blue-600 hover:bg-blue-700" 
+                        <Button
+                          size="sm"
+                          className="bg-blue-600 hover:bg-blue-700"
                           onClick={() => handleRegister(event.id)}
                           disabled={!user}
                         >
@@ -421,7 +338,7 @@ const Events = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2 text-gray-600">
-                      <div 
+                      <div
                         className="flex items-center gap-2 cursor-pointer hover:text-blue-600"
                         onClick={() => handleShowMap(event.location)}
                       >
@@ -431,7 +348,8 @@ const Events = () => {
                       <p>Team: {event.performance.team}</p>
                       <p>Score: {event.performance.points} - {event.performance.opponentPoints}</p>
                       <p>
-                        Result: <span className={event.performance.result === "Win" ? "text-green-600" : "text-red-600"}>
+                        Result: <span className={event.performance.result === "Win" ? "text-green-600" : "text-red" +
+                        "600"}>
                           {event.performance.result}
                         </span>
                       </p>
@@ -453,34 +371,34 @@ const Events = () => {
             <form onSubmit={handleRegisterSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">Full Name</label>
-                <Input 
-                  value={registerForm.name} 
-                  onChange={(e) => setRegisterForm({...registerForm, name: e.target.value})}
-                  required 
+                <Input
+                  value={registerForm.name}
+                  onChange={(e) => setRegisterForm({ ...registerForm, name: e.target.value })}
+                  required
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Team Name</label>
-                <Input 
-                  value={registerForm.teamName} 
-                  onChange={(e) => setRegisterForm({...registerForm, teamName: e.target.value})}
+                <Input
+                  value={registerForm.teamName}
+                  onChange={(e) => setRegisterForm({ ...registerForm, teamName: e.target.value })}
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Contact Number</label>
-                <Input 
-                  value={registerForm.contactNo} 
-                  onChange={(e) => setRegisterForm({...registerForm, contactNo: e.target.value})}
-                  required 
+                <Input
+                  value={registerForm.contactNo}
+                  onChange={(e) => setRegisterForm({ ...registerForm, contactNo: e.target.value })}
+                  required
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Email</label>
-                <Input 
+                <Input
                   type="email"
-                  value={registerForm.email} 
-                  onChange={(e) => setRegisterForm({...registerForm, email: e.target.value})}
-                  required 
+                  value={registerForm.email}
+                  onChange={(e) => setRegisterForm({ ...registerForm, email: e.target.value })}
+                  required
                 />
               </div>
               <DialogFooter>
@@ -516,50 +434,50 @@ const Events = () => {
             <form onSubmit={handleCreateSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">Event Name</label>
-                <Input 
-                  value={createForm.title} 
-                  onChange={(e) => setCreateForm({...createForm, title: e.target.value})}
-                  required 
+                <Input
+                  value={createForm.title}
+                  onChange={(e) => setCreateForm({ ...createForm, title: e.target.value })}
+                  required
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Prize Money</label>
-                <Input 
-                  value={createForm.prizeMoney} 
-                  onChange={(e) => setCreateForm({...createForm, prizeMoney: e.target.value})}
-                  required 
+                <Input
+                  value={createForm.prizeMoney}
+                  onChange={(e) => setCreateForm({ ...createForm, prizeMoney: e.target.value })}
+                  required
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Date</label>
-                <Input 
-                  value={createForm.date} 
-                  onChange={(e) => setCreateForm({...createForm, date: e.target.value})}
-                  required 
+                <Input
+                  value={createForm.date}
+                  onChange={(e) => setCreateForm({ ...createForm, date: e.target.value })}
+                  required
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Time</label>
-                <Input 
-                  value={createForm.time} 
-                  onChange={(e) => setCreateForm({...createForm, time: e.target.value})}
-                  required 
+                <Input
+                  value={createForm.time}
+                  onChange={(e) => setCreateForm({ ...createForm, time: e.target.value })}
+                  required
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Location</label>
-                <Input 
-                  value={createForm.location} 
-                  onChange={(e) => setCreateForm({...createForm, location: e.target.value})}
-                  required 
+                <Input
+                  value={createForm.location}
+                  onChange={(e) => setCreateForm({ ...createForm, location: e.target.value })}
+                  required
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Genre</label>
-                <Input 
-                  value={createForm.genre} 
-                  onChange={(e) => setCreateForm({...createForm, genre: e.target.value})}
-                  required 
+                <Input
+                  value={createForm.genre}
+                  onChange={(e) => setCreateForm({ ...createForm, genre: e.target.value })}
+                  required
                 />
               </div>
               <DialogFooter>
