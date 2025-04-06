@@ -1,288 +1,351 @@
-
 import React, { useState } from 'react';
-import { BarChart2, PieChart, LineChart, Activity, Filter, Download, ChevronDown, BarChart, TrendingUp, Users, Calendar, Medal } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { Input } from '@/components/ui/input';
-import { 
-  BarChart as RechartsBarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  LineChart as RechartsLineChart,
-  Line,
-  PieChart as RechartsPieChart,
-  Pie,
-  Cell,
+import {
+    BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+    LineChart, Line
 } from 'recharts';
-import Navbar from '@/components/layout/Navbar';
 
-// Mock performance data
-const performanceData = [
-  { month: 'Jan', performance: 65, average: 60 },
-  { month: 'Feb', performance: 59, average: 60 },
-  { month: 'Mar', performance: 80, average: 60 },
-  { month: 'Apr', performance: 81, average: 60 },
-  { month: 'May', performance: 56, average: 60 },
-  { month: 'Jun', performance: 55, average: 60 },
-  { month: 'Jul', performance: 60, average: 60 },
-  { month: 'Aug', performance: 70, average: 60 },
-  { month: 'Sep', performance: 85, average: 60 },
-  { month: 'Oct', performance: 90, average: 60 },
-  { month: 'Nov', performance: 72, average: 60 },
-  { month: 'Dec', performance: 78, average: 60 },
-];
+interface AthleteData {
+    name: string;
+    age: string;
+    sport: string;
+    role?: string;
+    trainingHours: string;
+    competitions: string;
+    wins: string;
+    runs?: string;
+    wickets?: string;
+    matchesPlayed?: string;
+    goals?: string;
+    assists?: string;
+    scores?: string;
+    rebounds?: string;
+}
 
-// Mock sport distribution data
-const sportDistributionData = [
-  { name: 'Cricket', value: 45 },
-  { name: 'Football', value: 25 },
-  { name: 'Badminton', value: 15 },
-  { name: 'Hockey', value: 10 },
-  { name: 'Other', value: 5 },
-];
+interface Metrics {
+    avgProgress: string;
+    competitions: number;
+    achievementRate: string;
+    sportSpecificMetric?: string;
+}
 
-// Mock athlete progress data
-const athleteProgressData = [
-  { month: 'Jan', strength: 30, speed: 40, technique: 35, mental: 25 },
-  { month: 'Feb', strength: 35, speed: 40, technique: 40, mental: 30 },
-  { month: 'Mar', strength: 40, speed: 45, technique: 45, mental: 35 },
-  { month: 'Apr', strength: 45, speed: 50, technique: 50, mental: 40 },
-  { month: 'May', strength: 50, speed: 55, technique: 55, mental: 45 },
-  { month: 'Jun', strength: 55, speed: 60, technique: 60, mental: 50 },
-];
+interface PerformanceTrend {
+    month: string;
+    performance: number;
+    average: number;
+}
 
-// Mock athlete metrics
-const athleteMetrics = [
-  { name: 'Total Athletes', value: 542, icon: Users, change: '+12%', changeType: 'positive' },
-  { name: 'Active Programs', value: 38, icon: Activity, change: '+3', changeType: 'positive' },
-  { name: 'Average Progress', value: '68%', icon: TrendingUp, change: '+5%', changeType: 'positive' },
-  { name: 'Competitions', value: 24, icon: Calendar, change: '-2', changeType: 'negative' },
-  { name: 'Achievement Rate', value: '74%', icon: Medal, change: '+8%', changeType: 'positive' },
-];
+interface ProgressMetric {
+    month: string;
+    strength: number;
+    speed: number;
+    technique: number;
+}
 
-// Colors for the pie chart
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#A569BD'];
+const Analyst: React.FC = () => {
+    const [athleteData, setAthleteData] = useState<AthleteData>({
+        name: '',
+        age: '',
+        sport: '',
+        trainingHours: '',
+        competitions: '',
+        wins: ''
+    });
+    const [metrics, setMetrics] = useState<Metrics | null>(null);
+    const [performanceTrend, setPerformanceTrend] = useState<PerformanceTrend[]>([]);
+    const [progressMetrics, setProgressMetrics] = useState<ProgressMetric[]>([]);
 
-const Analyst = () => {
-  const [selectedFilter, setSelectedFilter] = useState("all");
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        setAthleteData({ ...athleteData, [e.target.name]: e.target.value });
+    };
 
-  return (
-    <div className="min-h-screen bg-background">
-      <Navbar />
-      
-      <div className="container mx-auto px-4 pt-24 pb-16">
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <BarChart2 className="h-7 w-7" />
-            <span>Performance Analytics</span>
-          </h1>
-          <div className="flex items-center gap-2">
-            <Button variant="outline">
-              <Filter className="h-4 w-4 mr-2" />
-              Filters
-            </Button>
-            <Button variant="outline">
-              <Download className="h-4 w-4 mr-2" />
-              Export
-            </Button>
-          </div>
-        </div>
-        
-        <div className="grid gap-4 md:grid-cols-5 mb-6">
-          {athleteMetrics.map((metric, index) => (
-            <Card key={index}>
-              <CardHeader className="pb-2">
-                <CardDescription>{metric.name}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-2xl font-bold">{metric.value}</div>
-                    <span className={`text-xs ${metric.changeType === 'positive' ? 'text-green-500' : 'text-red-500'}`}>
-                      {metric.change}
-                    </span>
-                  </div>
-                  <metric.icon className="h-8 w-8 text-muted-foreground opacity-80" />
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-        
-        <Tabs defaultValue="overview" className="mb-6">
-          <TabsList>
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="performance">Performance</TabsTrigger>
-            <TabsTrigger value="athletes">Athletes</TabsTrigger>
-            <TabsTrigger value="comparison">Comparison</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="overview" className="mt-4">
-            <div className="grid gap-6 md:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <LineChart className="h-5 w-5" />
-                    Performance Trends
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RechartsLineChart data={performanceData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" />
-                      <YAxis />
-                      <Tooltip />
-                      <Legend />
-                      <Line type="monotone" dataKey="performance" stroke="#8884d8" activeDot={{ r: 8 }} />
-                      <Line type="monotone" dataKey="average" stroke="#82ca9d" strokeDasharray="5 5" />
-                    </RechartsLineChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <PieChart className="h-5 w-5" />
-                    Sport Distribution
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="h-80">
-                  <div className="h-full flex flex-col justify-center">
-                    <ResponsiveContainer width="100%" height={220}>
-                      <RechartsPieChart>
-                        <Pie
-                          data={sportDistributionData}
-                          cx="50%"
-                          cy="50%"
-                          labelLine={false}
-                          label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                          outerRadius={80}
-                          fill="#8884d8"
-                          dataKey="value"
-                        >
-                          {sportDistributionData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <Tooltip />
-                      </RechartsPieChart>
-                    </ResponsiveContainer>
-                    
-                    <div className="flex justify-center flex-wrap gap-2 mt-4">
-                      {sportDistributionData.map((entry, index) => (
-                        <div key={index} className="flex items-center gap-1">
-                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }}></div>
-                          <span className="text-xs">{entry.name}</span>
+    const analyzeData = () => {
+        const trainingHours = parseInt(athleteData.trainingHours) || 0;
+        const competitions = parseInt(athleteData.competitions) || 0;
+        const wins = parseInt(athleteData.wins) || 0;
+
+        const achievementRate = competitions > 0 ? 
+            ((wins / competitions) * 100).toFixed(1) : '0';
+
+        let sportSpecificMetric = '';
+        if (athleteData.sport === 'Cricket') {
+            const runs = parseInt(athleteData.runs || '0');
+            const wickets = parseInt(athleteData.wickets || '0');
+            sportSpecificMetric = `Runs: ${runs}, Wickets: ${wickets}`;
+        } else if (athleteData.sport === 'Football') {
+            const goals = parseInt(athleteData.goals || '0');
+            const assists = parseInt(athleteData.assists || '0');
+            sportSpecificMetric = `Goals: ${goals}, Assists: ${assists}`;
+        } else if (athleteData.sport === 'Basketball') {
+            const scores = parseInt(athleteData.scores || '0');
+            const rebounds = parseInt(athleteData.rebounds || '0');
+            const assists = parseInt(athleteData.assists || '0');
+            sportSpecificMetric = `Scores: ${scores}, Rebounds: ${rebounds}, Assists: ${assists}`;
+        }
+
+        setMetrics({
+            avgProgress: `${Math.floor(Math.random() * 100)}%`, // Removed decimals
+            competitions,
+            achievementRate: `${achievementRate}%`,
+            sportSpecificMetric
+        });
+
+        const trend: PerformanceTrend[] = Array(6).fill(null).map((_, i) => ({
+            month: new Date(2025, 3 - i, 1).toLocaleString('default', { month: 'short' }),
+            performance: Math.floor(Math.random() * 40 + 60),
+            average: 75
+        })).reverse();
+        setPerformanceTrend(trend);
+
+        const progress: ProgressMetric[] = Array(6).fill(null).map((_, i) => ({
+            month: new Date(2025, 3 - i, 1).toLocaleString('default', { month: 'short' }),
+            strength: Math.min(100, Math.random() * 100),
+            speed: Math.min(100, Math.random() * 100),
+            technique: Math.min(100, Math.random() * 100),
+        })).reverse();
+        setProgressMetrics(progress);
+    };
+
+    return (
+        <div className="min-h-screen bg-gray-100 p-6">
+            <div className="max-w-6xl mx-auto">
+                <h1 className="text-4xl font-extrabold mb-8 text-center text-blue-600 pt-16">
+                    {/* Added padding to prevent overlap */}
+                    Athlete Performance Analytics
+                </h1>
+
+                <div className="bg-white p-8 rounded-lg shadow-lg mb-8">
+                    <div className="grid md:grid-cols-2 gap-6">
+                        <div>
+                            <label className="block text-sm font-medium mb-2">Athlete Name</label>
+                            <input 
+                                type="text" 
+                                name="name"
+                                value={athleteData.name}
+                                onChange={handleInputChange}
+                                className="w-full p-3 border rounded-lg"
+                                placeholder="Type your name"
+                            />
                         </div>
-                      ))}
+                        <div>
+                            <label className="block text-sm font-medium mb-2">Age</label>
+                            <input 
+                                type="number" 
+                                name="age"
+                                value={athleteData.age}
+                                onChange={handleInputChange}
+                                className="w-full p-3 border rounded-lg"
+                                placeholder="Type your age"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium mb-2">Sport</label>
+                            <select 
+                                name="sport"
+                                value={athleteData.sport}
+                                onChange={handleInputChange}
+                                className="w-full p-3 border rounded-lg"
+                            >
+                                <option value="">Select Sport</option>
+                                <option value="Cricket">Cricket</option>
+                                <option value="Football">Football</option>
+                                <option value="Basketball">Basketball</option>
+                            </select>
+                        </div>
+                        {athleteData.sport === 'Cricket' && (
+                            <>
+                                <div>
+                                    <label className="block text-sm font-medium mb-2">Role</label>
+                                    <input 
+                                        type="text" 
+                                        name="role"
+                                        value={athleteData.role || ''}
+                                        onChange={handleInputChange}
+                                        className="w-full p-3 border rounded-lg"
+                                        placeholder="Batsman, Bowler, etc."
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-2">Runs</label>
+                                    <input 
+                                        type="number" 
+                                        name="runs"
+                                        value={athleteData.runs || ''}
+                                        onChange={handleInputChange}
+                                        className="w-full p-3 border rounded-lg"
+                                        placeholder="Total runs scored"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-2">Wickets</label>
+                                    <input 
+                                        type="number" 
+                                        name="wickets"
+                                        value={athleteData.wickets || ''}
+                                        onChange={handleInputChange}
+                                        className="w-full p-3 border rounded-lg"
+                                        placeholder="Total wickets taken"
+                                    />
+                                </div>
+                            </>
+                        )}
+                        {athleteData.sport === 'Football' && (
+                            <>
+                                <div>
+                                    <label className="block text-sm font-medium mb-2">Goals</label>
+                                    <input 
+                                        type="number" 
+                                        name="goals"
+                                        value={athleteData.goals || ''}
+                                        onChange={handleInputChange}
+                                        className="w-full p-3 border rounded-lg"
+                                        placeholder="Total goals scored"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-2">Assists</label>
+                                    <input 
+                                        type="number" 
+                                        name="assists"
+                                        value={athleteData.assists || ''}
+                                        onChange={handleInputChange}
+                                        className="w-full p-3 border rounded-lg"
+                                        placeholder="Total assists made"
+                                    />
+                                </div>
+                            </>
+                        )}
+                        {athleteData.sport === 'Basketball' && (
+                            <>
+                                <div>
+                                    <label className="block text-sm font-medium mb-2">Scores</label>
+                                    <input 
+                                        type="number" 
+                                        name="scores"
+                                        value={athleteData.scores || ''}
+                                        onChange={handleInputChange}
+                                        className="w-full p-3 border rounded-lg"
+                                        placeholder="Total scores made"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-2">Rebounds</label>
+                                    <input 
+                                        type="number" 
+                                        name="rebounds"
+                                        value={athleteData.rebounds || ''}
+                                        onChange={handleInputChange}
+                                        className="w-full p-3 border rounded-lg"
+                                        placeholder="Total rebounds made"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-2">Assists</label>
+                                    <input 
+                                        type="number" 
+                                        name="assists"
+                                        value={athleteData.assists || ''}
+                                        onChange={handleInputChange}
+                                        className="w-full p-3 border rounded-lg"
+                                        placeholder="Total assists made"
+                                    />
+                                </div>
+                            </>
+                        )}
+                        <div>
+                            <label className="block text-sm font-medium mb-2">Weekly Training Hours</label>
+                            <input 
+                                type="number" 
+                                name="trainingHours"
+                                value={athleteData.trainingHours}
+                                onChange={handleInputChange}
+                                className="w-full p-3 border rounded-lg"
+                                placeholder="Type your training hours"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium mb-2">Competitions Participated</label>
+                            <input 
+                                type="number" 
+                                name="competitions"
+                                value={athleteData.competitions}
+                                onChange={handleInputChange}
+                                className="w-full p-3 border rounded-lg"
+                                placeholder="Type competitions participated"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium mb-2">Wins</label>
+                            <input 
+                                type="number" 
+                                name="wins"
+                                value={athleteData.wins}
+                                onChange={handleInputChange}
+                                className="w-full p-3 border rounded-lg"
+                                placeholder="Type wins"
+                            />
+                        </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <Card className="md:col-span-2">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <BarChart className="h-5 w-5" />
-                    Athlete Progress Metrics
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RechartsBarChart data={athleteProgressData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" />
-                      <YAxis />
-                      <Tooltip />
-                      <Legend />
-                      <Bar dataKey="strength" fill="#8884d8" name="Strength" />
-                      <Bar dataKey="speed" fill="#82ca9d" name="Speed" />
-                      <Bar dataKey="technique" fill="#ffc658" name="Technique" />
-                      <Bar dataKey="mental" fill="#ff8042" name="Mental" />
-                    </RechartsBarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-          
-          <TabsContent value="performance">
-            <div className="text-center py-16">
-              <h3 className="text-xl font-medium mb-2">Performance Analysis Dashboard</h3>
-              <p className="text-muted-foreground mb-6">This section will contain detailed performance metrics and analysis tools.</p>
-              <Button>View Performance Data</Button>
-            </div>
-          </TabsContent>
-          
-          <TabsContent value="athletes">
-            <div className="text-center py-16">
-              <h3 className="text-xl font-medium mb-2">Athlete Management Dashboard</h3>
-              <p className="text-muted-foreground mb-6">This section will contain athlete profiles, progress tracking, and management tools.</p>
-              <Button>View Athletes</Button>
-            </div>
-          </TabsContent>
-          
-          <TabsContent value="comparison">
-            <div className="text-center py-16">
-              <h3 className="text-xl font-medium mb-2">Comparative Analysis Dashboard</h3>
-              <p className="text-muted-foreground mb-6">This section will allow comparing athletes, teams, and performance metrics.</p>
-              <Button>Start Comparison</Button>
-            </div>
-          </TabsContent>
-        </Tabs>
-        
-        <Card>
-          <CardHeader>
-            <CardTitle>Advanced Analytics</CardTitle>
-            <CardDescription>Utilize AI-powered insights to optimize athlete performance and development</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-6 md:grid-cols-3">
-              <div className="border rounded-lg p-4 text-center">
-                <div className="h-12 w-12 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4">
-                  <LineChart className="h-6 w-6" />
+                    <button 
+                        onClick={analyzeData}
+                        className="mt-6 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition"
+                    >
+                        Analyze Performance
+                    </button>
                 </div>
-                <h3 className="font-medium mb-2">Performance Prediction</h3>
-                <p className="text-sm text-muted-foreground">Predict future performance based on historical data and training patterns</p>
-                <Button variant="outline" className="mt-4" size="sm">Analyze</Button>
-              </div>
-              
-              <div className="border rounded-lg p-4 text-center">
-                <div className="h-12 w-12 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4">
-                  <Activity className="h-6 w-6" />
-                </div>
-                <h3 className="font-medium mb-2">Injury Risk Assessment</h3>
-                <p className="text-sm text-muted-foreground">Identify potential injury risks based on workload and recovery patterns</p>
-                <Button variant="outline" className="mt-4" size="sm">Assess</Button>
-              </div>
-              
-              <div className="border rounded-lg p-4 text-center">
-                <div className="h-12 w-12 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4">
-                  <TrendingUp className="h-6 w-6" />
-                </div>
-                <h3 className="font-medium mb-2">Talent Identification</h3>
-                <p className="text-sm text-muted-foreground">Identify potential elite athletes using advanced performance metrics</p>
-                <Button variant="outline" className="mt-4" size="sm">Discover</Button>
-              </div>
+
+                {metrics && (
+                    <div className="grid md:grid-cols-4 gap-6 mb-8">
+                        {Object.entries({
+                            'Average Progress': metrics.avgProgress,
+                            'Competitions': metrics.competitions,
+                            'Achievement Rate': metrics.achievementRate,
+                            ...(metrics.sportSpecificMetric ? { 'Sport-Specific Metric': metrics.sportSpecificMetric } : {})
+                        }).map(([name, value]) => (
+                            <div key={name} className="bg-white p-6 rounded-lg shadow-lg">
+                                <h3 className="text-sm text-gray-500">{name}</h3>
+                                <p className="text-2xl font-bold">{value}</p>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {metrics && (
+                    <div className="grid md:grid-cols-2 gap-8">
+                        <div className="bg-white p-6 rounded-lg shadow-lg">
+                            <h2 className="text-lg font-semibold mb-4">Performance Trend</h2>
+                            <ResponsiveContainer width="100%" height={300}>
+                                <LineChart data={performanceTrend}>
+                                    <CartesianGrid strokeDasharray="3 3" />
+                                    <XAxis dataKey="month" />
+                                    <YAxis />
+                                    <Tooltip />
+                                    <Legend />
+                                    <Line type="monotone" dataKey="performance" stroke="#8884d8" />
+                                    <Line type="monotone" dataKey="average" stroke="#82ca9d" strokeDasharray="5 5" />
+                                </LineChart>
+                            </ResponsiveContainer>
+                        </div>
+
+                        <div className="bg-white p-6 rounded-lg shadow-lg">
+                            <h2 className="text-lg font-semibold mb-4">Progress Metrics</h2>
+                            <ResponsiveContainer width="100%" height={300}>
+                                <BarChart data={progressMetrics}>
+                                    <CartesianGrid strokeDasharray="3 3" />
+                                    <XAxis dataKey="month" />
+                                    <YAxis />
+                                    <Tooltip />
+                                    <Legend />
+                                    <Bar dataKey="strength" fill="#8884d8" />
+                                    <Bar dataKey="speed" fill="#82ca9d" />
+                                    <Bar dataKey="technique" fill="#ffc658" />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </div>
+                )}
             </div>
-          </CardContent>
-          <CardFooter className="flex justify-center">
-            <Button>Unlock Advanced Analytics</Button>
-          </CardFooter>
-        </Card>
-      </div>
-    </div>
-  );
+        </div>
+    );
 };
 
 export default Analyst;

@@ -10,7 +10,7 @@ const ProtectedRoute = ({ children }: { children: ReactNode }) => {
   console.log("ProtectedRoute: Current auth state:", { user, loading, error });
 
   if (loading) {
-    return <div>Loading...</div>;
+    return <div className="min-h-screen flex items-center justify-center bg-gray-100">Loading...</div>;
   }
 
   if (error) {
